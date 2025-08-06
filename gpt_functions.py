@@ -42,7 +42,15 @@ def generate_building_options(zoning_info, parcel_sqft):
 
     try:
         response = requests.post(GROQ_API_URL, headers=headers, json=body)
-        result = response.json()
+        try:
+            result = response.json()
+        except json.JSONDecodeError:
+            return json.dumps({"error": "Groq API returned invalid JSON"})
+
+        if "choices" not in result:
+            return json.dumps({"error": "Groq API did not return 'choices'. Response: " + str(result)})
+
         return result["choices"][0]["message"]["content"]
+
     except Exception as e:
         return json.dumps({"error": str(e)})
