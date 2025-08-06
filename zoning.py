@@ -1,34 +1,23 @@
 import requests
 
 def get_zoning_info(lat, lon):
-    """
-    Query Loudoun County's Zoning API (ArcGIS REST) for zoning info at the given coordinates.
-    Returns basic zoning and overlay details.
-    """
-    base_url = "https://logis.loudoun.gov/arcgis/rest/services/COL/Zoning/MapServer/3/query"
-    params = {
-        "geometry": f"{lon},{lat}",
-        "geometryType": "esriGeometryPoint",
-        "inSR": 4326,
-        "outFields": "*",
-        "returnGeometry": "false",
-        "f": "json"
-    }
-
     try:
-        response = requests.get(base_url, params=params)
-        data = response.json()
+        url = f"https://maps.loudoun.gov/arcgis/rest/services/Public/Zoning/MapServer/7/query?f=json&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&geometry={lon},{lat}&outFields=*"
 
-        if data.get("features"):
-            attr = data["features"][0]["attributes"]
-            return {
-                "Zoning_District": attr.get("ZONING"),
-                "Overlay_District": attr.get("OVERLAY"),
-                "Label": attr.get("LABEL"),
-                "Notes": attr.get("NOTES")
-            }
-        else:
-            return {"error": "No zoning data found for this location."}
+        response = requests.get(url)
+
+        if response.status_code != 200:
+            return {"error": f"Loudoun API returned status {response.status_code}"}
+
+        try:
+            data = response.json()
+        except ValueError:
+            return {"error": "Invalid JSON from Loudoun County API"}
+
+        if not data.get("features"):
+            return {"error": "No zoning info found for this location."}
+
+        return data["features"][0]["attributes"]
 
     except Exception as e:
         return {"error": str(e)}
