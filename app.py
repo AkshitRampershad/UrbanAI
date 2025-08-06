@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import openai
 import json
 from zoning import get_zoning_info
 from layout_utils import plot_layout
@@ -10,8 +9,6 @@ from gpt_functions import generate_building_options
 st.set_page_config(page_title="TerraIQ - Parcel Analyzer", layout="wide")
 st.title("🧠 TerraIQ | Loudoun County AI Parcel Analyzer")
 
-# -- API Key Setup --
-openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # -- Location Input --
 st.subheader("1. Locate Your Parcel")
