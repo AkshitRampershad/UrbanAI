@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import json
+import plotly.graph_objects as go
 from zoning import get_zoning_info
 from layout_utils import plot_layout
 from gpt_functions import generate_building_options
@@ -8,7 +9,6 @@ from gpt_functions import generate_building_options
 # -- Streamlit Page Setup --
 st.set_page_config(page_title="TerraIQ - Parcel Analyzer", layout="wide")
 st.title("🧠 TerraIQ | Loudoun County AI Parcel Analyzer")
-
 
 # -- Location Input --
 st.subheader("1. Locate Your Parcel")
@@ -40,15 +40,24 @@ elif address_input:
 if coords:
     zoning_info = get_zoning_info(coords[0], coords[1])
     st.subheader("2. Zoning Information")
-    st.json(zoning_info)
+    if "error" in zoning_info:
+        st.error(f"Zoning API Error: {zoning_info['error']}")
+    else:
+        st.json(zoning_info)
 
-    st.subheader("3. AI-Powered Concept Plans")
-    parcel_size_sqft = round(parcel_size_acres * 43560, 2)
-    response = generate_building_options(zoning_info, parcel_size_sqft)
+        st.subheader("3. AI-Powered Concept Plans")
+        parcel_size_sqft = round(parcel_size_acres * 43560, 2)
+        response = generate_building_options(zoning_info, parcel_size_sqft)
 
-    if response:
         try:
             concept = json.loads(response)
+        except json.JSONDecodeError:
+            st.error("Failed to parse concept plans response.")
+            concept = {}
+
+        if "error" in concept:
+            st.error(f"Concept Plan Error: {concept['error']}")
+        else:
             for option in concept.get("options", []):
                 st.markdown(f"### 🏗️ {option['option_name']}")
                 st.write(f"- Building Area: {option['building_area_sft']} sqft")
@@ -57,9 +66,5 @@ if coords:
 
             with st.expander("Show Raw JSON Output"):
                 st.json(concept)
-        except json.JSONDecodeError:
-            st.error("GPT returned invalid JSON. Please try again.")
-    else:
-        st.warning("No concept plans were generated.")
 
     st.info("This is an AI-generated conceptual analysis. All outputs are based on zoning inputs fetched in real time.")
