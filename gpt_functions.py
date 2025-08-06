@@ -1,13 +1,13 @@
-import openai
+import requests
 import json
-from openai import OpenAI
 
-# Initialize OpenAI client using your secret key from streamlit
-client = OpenAI(api_key=openai.api_key)
+GROQ_API_KEY = "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"
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "mixtral-8x7b-32768"
 
 def generate_building_options(zoning_info, parcel_sqft):
     """
-    Use OpenAI GPT-4o to generate concept building plans based on zoning and parcel size.
+    Use Groq + Mixtral to generate building plan options.
     """
     prompt = f"""
     You're an expert urban planner and architect. A user has a parcel of land with the following zoning constraints:
@@ -26,16 +26,23 @@ def generate_building_options(zoning_info, parcel_sqft):
     Respond with a JSON object named "options" that holds a list of concept options.
     """
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a helpful urban planning assistant."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.5
-        )
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
 
-        return response.choices[0].message.content
+    body = {
+        "model": GROQ_MODEL,
+        "messages": [
+            {"role": "system", "content": "You are a helpful urban planning assistant."},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.5
+    }
+
+    try:
+        response = requests.post(GROQ_API_URL, headers=headers, json=body)
+        result = response.json()
+        return result["choices"][0]["message"]["content"]
     except Exception as e:
         return json.dumps({"error": str(e)})
