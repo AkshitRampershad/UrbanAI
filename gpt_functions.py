@@ -1,7 +1,8 @@
 import requests
 import json
 
-GROQ_API_KEY = "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"
+import streamlit as st
+GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "mixtral-8x7b-32768"
 
