@@ -5,9 +5,10 @@ Synthesizes pipeline run metrics, ML model performance, and market
 summary data into a short, business-facing report - the same
 Groq-powered "intelligence engine" pattern used elsewhere in this app
 (see gpt_functions.py), applied to pipeline observability instead of
-building layouts. Groq's llama-3.3-70b-versatile is used in place of
-GPT-4 (see groq_client.py); the report's job - turning pipeline metrics
-into an executive narrative - is the same regardless of provider.
+building layouts. A Groq-hosted model is used in place of GPT-4 (see
+groq_client.py for the current model id); the report's job - turning
+pipeline metrics into an executive narrative - is the same regardless
+of provider.
 
 Falls back to a deterministic, non-LLM report (built straight from the
 numbers) if no Groq API key is configured or the API call fails, so the

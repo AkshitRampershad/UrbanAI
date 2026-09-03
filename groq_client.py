@@ -14,9 +14,11 @@ import os
 from typing import Optional
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-# mixtral-8x7b-32768 was decommissioned by Groq; llama-3.3-70b-versatile is
-# a current, supported model with JSON-mode support.
-GROQ_MODEL = "llama-3.3-70b-versatile"
+# mixtral-8x7b-32768 was decommissioned first; its replacement,
+# llama-3.3-70b-versatile, was itself deprecated by Groq in June 2026.
+# openai/gpt-oss-120b is Groq's current recommended replacement for
+# general-purpose/agentic use, with JSON-mode support.
+GROQ_MODEL = "openai/gpt-oss-120b"
 
 
 def get_groq_api_key() -> Optional[str]:

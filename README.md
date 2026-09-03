@@ -11,7 +11,7 @@ Both are one Streamlit app — Portfolio Intelligence shows up as a second page 
 
 1. **Locate the parcel** — enter an address in Loudoun County (geocoded via [Nominatim/OpenStreetMap](https://nominatim.openstreetmap.org/)), or provide latitude/longitude directly.
 2. **Fetch zoning data** — the app queries [Loudoun County's public zoning ArcGIS service](https://maps.loudoun.gov/) for the parcel's zoning attributes in real time.
-3. **Generate concept plans** — the zoning info and parcel size are sent to an LLM ([Groq](https://groq.com/)-hosted Llama 3.3 70B) asking for 2–3 building concepts that maximize investment potential without violating the zoning rules.
+3. **Generate concept plans** — the zoning info and parcel size are sent to an LLM ([Groq](https://groq.com/)-hosted GPT-OSS 120B (openai/gpt-oss-120b)) asking for 2–3 building concepts that maximize investment potential without violating the zoning rules.
 4. **Visualize the layout** — each concept's footprint is rendered as an interactive Plotly building outline.
 
 Scope: zoning lookups are specific to Loudoun County, VA (the ArcGIS endpoint and geocoding query are hardcoded to that jurisdiction); concepts are a starting point for exploration, not a substitute for a licensed architect or zoning attorney.
@@ -25,7 +25,7 @@ A real, end-to-end build of the pipeline described on the résumé — data inge
 | Spatial data ingestion pipelines + ML site-ranking engine (Databricks AutoML, MLflow), 92% prediction accuracy | A real pipeline and a real trained model (`pipeline/train_model.py`) — logistic regression, random forest, and gradient boosting are trained and the best is kept by actual held-out test accuracy, using local scikit-learn instead of Databricks AutoML, with a JSON run log (`models/mlflow_runs.json`) standing in for MLflow. **The accuracy shown in the app is whatever the model actually scores — never hardcoded to match 92% or any other number.** |
 | FastAPI ingestion of 50M+ parcel/zoning records into AWS S3, Auto Loader, DLT | A real FastAPI service (`api/ingestion_service.py`, endpoints below) ingesting a synthetic, configurable-size sample (5K–50K rows) instead of 50M real records / real S3 |
 | Bronze/Silver/Gold medallion pipeline via LakeFlow + DLT, automated schema evolution and quality validation | A real medallion pipeline (`pipeline/medallion.py`) — DuckDB + Parquet Bronze/Silver/Gold layers with real quality checks (null/range validation, dedup) that quarantine genuinely bad synthetic rows, run locally instead of on Databricks LakeFlow/DLT |
-| GPT-4-powered executive intelligence engine | A real LLM report generator (`pipeline/executive_report.py`) synthesizing pipeline + model metrics into a markdown executive report, using Groq's Llama 3.3 70B instead of GPT-4. Falls back to a deterministic, numbers-only report if no API key is configured — the report view never breaks |
+| GPT-4-powered executive intelligence engine | A real LLM report generator (`pipeline/executive_report.py`) synthesizing pipeline + model metrics into a markdown executive report, using Groq's GPT-OSS 120B (openai/gpt-oss-120b) instead of GPT-4. Falls back to a deterministic, numbers-only report if no API key is configured — the report view never breaks |
 | AWS/Databricks workspace (S3, AutoML, MLflow, LakeFlow, DLT) | Documented placeholder adapters in `pipeline/cloud_adapters.py` — each function names its local equivalent, sketches the real SDK calls, and raises a clear `NotImplementedError` until real credentials are wired in via `PIPELINE_BACKEND=databricks` |
 
 **Data provenance:** all parcel/zoning data is synthetically generated (`pipeline/generate_sample_data.py`), seeded for reproducibility, with field names and value ranges modeled on public Loudoun County parcel/zoning structure. It is not scraped or downloaded from any live system, and realistic data-quality issues (nulls, negative values, duplicates) are deliberately injected so the Silver-layer quality checks have real problems to catch.
@@ -45,7 +45,7 @@ Run standalone with `uvicorn api.ingestion_service:app --reload --port 8000` (th
 
 ## Tech Stack
 - **[Streamlit](https://streamlit.io/)** — UI and app framework
-- **[Groq API](https://groq.com/)** (Llama 3.3 70B) — concept plan generation and executive reporting
+- **[Groq API](https://groq.com/)** (GPT-OSS 120B, `openai/gpt-oss-120b`) — concept plan generation and executive reporting
 - **[DuckDB](https://duckdb.org/)** + **Parquet** — local medallion pipeline (stand-in for Databricks Lakehouse)
 - **[scikit-learn](https://scikit-learn.org/)** — site-ranking model training (stand-in for Databricks AutoML)
 - **[FastAPI](https://fastapi.tiangolo.com/)** — parcel ingestion/query service
