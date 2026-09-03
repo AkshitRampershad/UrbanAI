@@ -28,12 +28,29 @@ if use_location:
     lon = st.number_input("Longitude", value=-77.6454)
     coords = (lat, lon)
 elif address_input:
-    geocode_url = f"https://nominatim.openstreetmap.org/search?q={address_input},Loudoun+County,VA&format=json&limit=1"
-    r = requests.get(geocode_url).json()
+    try:
+        response = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": f"{address_input}, Loudoun County, VA", "format": "json", "limit": 1},
+            # Nominatim's usage policy requires a descriptive User-Agent;
+            # requests without one are frequently rejected with a non-JSON
+            # response, which crashes a bare .json() call.
+            headers={"User-Agent": "TerraIQ-UrbanAI/1.0 (https://github.com/AkshitRampershad/UrbanAI)"},
+            timeout=15,
+        )
+        response.raise_for_status()
+        r = response.json()
+    except requests.RequestException as e:
+        st.error(f"Geocoding request failed: {e}")
+        r = None
+    except ValueError:
+        st.error("Geocoding service returned an unexpected (non-JSON) response. Please try again.")
+        r = None
+
     if r:
         coords = (float(r[0]['lat']), float(r[0]['lon']))
         st.success(f"Found location: {coords}")
-    else:
+    elif r is not None:
         st.error("Could not find the address.")
 
 # -- Fetch Zoning and Analyze --
