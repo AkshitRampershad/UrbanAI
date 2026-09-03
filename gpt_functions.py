@@ -1,15 +1,17 @@
 import requests
 import json
 
-import streamlit as st
-GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
-GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "mixtral-8x7b-32768"
+from groq_client import GROQ_API_URL, GROQ_MODEL, get_groq_api_key
+
 
 def generate_building_options(zoning_info, parcel_sqft):
     """
-    Use Groq + Mixtral to generate building plan options.
+    Use Groq to generate building plan options.
     """
+    api_key = get_groq_api_key()
+    if not api_key:
+        return json.dumps({"error": "GROQ_API_KEY is not configured. Add it in Streamlit secrets."})
+
     prompt = f"""
     You're an expert urban planner and architect. A user has a parcel of land with the following zoning constraints:
 
@@ -28,17 +30,18 @@ def generate_building_options(zoning_info, parcel_sqft):
     """
 
     headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
 
     body = {
         "model": GROQ_MODEL,
         "messages": [
-            {"role": "system", "content": "You are a helpful urban planning assistant."},
+            {"role": "system", "content": "You are a helpful urban planning assistant. Always respond with valid JSON only."},
             {"role": "user", "content": prompt}
         ],
-        "temperature": 0.5
+        "temperature": 0.5,
+        "response_format": {"type": "json_object"}
     }
 
     try:

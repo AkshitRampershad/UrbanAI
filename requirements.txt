@@ -1,3 +1,11 @@
-streamlit
+streamlit>=1.37
 requests
 plotly
+duckdb>=0.10
+pandas>=2.0
+pyarrow
+scikit-learn>=1.4
+joblib
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.0

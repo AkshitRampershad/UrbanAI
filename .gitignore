@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
+
+# Generated at runtime by the pipeline (synthetic data, trained model,
+# run logs) - not committed, so the repo stays small and every clone
+# starts from a clean slate that the app/pages regenerate on demand.
+data/
+models/
+
+.venv/
+venv/
+*.egg-info/
+.DS_Store

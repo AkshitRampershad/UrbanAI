@@ -1,42 +1,80 @@
-# UrbanAI — TerraIQ Parcel Analyzer
+# UrbanAI
 
-An AI agent for urban development and planning. TerraIQ looks up a parcel's real zoning constraints in Loudoun County, VA, then uses an LLM to propose concept building plans that maximize investment potential while staying within those constraints — visualized as an interactive building footprint.
+Two things live in this repo, both real and runnable:
 
-## How It Works
+1. **TerraIQ Parcel Analyzer** (`app.py`) — an AI agent that looks up a parcel's zoning in Loudoun County, VA and proposes zoning-constrained concept building plans.
+2. **Portfolio Intelligence** (`pages/1_Portfolio_Intelligence.py`) — a Bronze/Silver/Gold data pipeline, a trained ML site-ranking model, a FastAPI ingestion service, and an LLM-generated executive report, built to demonstrate the data engineering work described in the "Data Engineer / AI Practitioner" experience entry on [akshitrampershad.com](https://akshitrampershad.com).
+
+Both are one Streamlit app — Portfolio Intelligence shows up as a second page in the sidebar.
+
+## 1. TerraIQ Parcel Analyzer
+
 1. **Locate the parcel** — enter an address in Loudoun County (geocoded via [Nominatim/OpenStreetMap](https://nominatim.openstreetmap.org/)), or provide latitude/longitude directly.
 2. **Fetch zoning data** — the app queries [Loudoun County's public zoning ArcGIS service](https://maps.loudoun.gov/) for the parcel's zoning attributes in real time.
-3. **Generate concept plans** — the zoning info and parcel size (in acres) are sent to an LLM (Groq-hosted Mixtral 8x7B) with a prompt asking for 2–3 building concepts that maximize investment potential without violating the zoning rules, each with a floor count, units per floor, and a structured footprint.
-4. **Visualize the layout** — each concept's footprint (and stairs, if returned) is rendered as an interactive Plotly building outline, with raw JSON available for inspection.
+3. **Generate concept plans** — the zoning info and parcel size are sent to an LLM ([Groq](https://groq.com/)-hosted Llama 3.3 70B) asking for 2–3 building concepts that maximize investment potential without violating the zoning rules.
+4. **Visualize the layout** — each concept's footprint is rendered as an interactive Plotly building outline.
 
-## Features
-- Address or coordinate-based parcel lookup for Loudoun County, VA
-- Live zoning lookup against the county's public GIS API
-- AI-generated concept building plans constrained by real zoning data
-- Interactive Plotly visualization of proposed building footprints
-- Runs as a single-page Streamlit app, ready for GitHub Codespaces
+Scope: zoning lookups are specific to Loudoun County, VA (the ArcGIS endpoint and geocoding query are hardcoded to that jurisdiction); concepts are a starting point for exploration, not a substitute for a licensed architect or zoning attorney.
+
+## 2. Portfolio Intelligence
+
+A real, end-to-end build of the pipeline described on the résumé — data ingestion, a medallion architecture, a trained ranking model, and an LLM executive report — run on **synthetic sample data** with **free, local tools** standing in for the production Databricks/AWS stack, so it runs on Streamlit Community Cloud's free tier with zero cloud credentials.
+
+| Résumé claim | What's real in this repo |
+| --- | --- |
+| Spatial data ingestion pipelines + ML site-ranking engine (Databricks AutoML, MLflow), 92% prediction accuracy | A real pipeline and a real trained model (`pipeline/train_model.py`) — logistic regression, random forest, and gradient boosting are trained and the best is kept by actual held-out test accuracy, using local scikit-learn instead of Databricks AutoML, with a JSON run log (`models/mlflow_runs.json`) standing in for MLflow. **The accuracy shown in the app is whatever the model actually scores — never hardcoded to match 92% or any other number.** |
+| FastAPI ingestion of 50M+ parcel/zoning records into AWS S3, Auto Loader, DLT | A real FastAPI service (`api/ingestion_service.py`, endpoints below) ingesting a synthetic, configurable-size sample (5K–50K rows) instead of 50M real records / real S3 |
+| Bronze/Silver/Gold medallion pipeline via LakeFlow + DLT, automated schema evolution and quality validation | A real medallion pipeline (`pipeline/medallion.py`) — DuckDB + Parquet Bronze/Silver/Gold layers with real quality checks (null/range validation, dedup) that quarantine genuinely bad synthetic rows, run locally instead of on Databricks LakeFlow/DLT |
+| GPT-4-powered executive intelligence engine | A real LLM report generator (`pipeline/executive_report.py`) synthesizing pipeline + model metrics into a markdown executive report, using Groq's Llama 3.3 70B instead of GPT-4. Falls back to a deterministic, numbers-only report if no API key is configured — the report view never breaks |
+| AWS/Databricks workspace (S3, AutoML, MLflow, LakeFlow, DLT) | Documented placeholder adapters in `pipeline/cloud_adapters.py` — each function names its local equivalent, sketches the real SDK calls, and raises a clear `NotImplementedError` until real credentials are wired in via `PIPELINE_BACKEND=databricks` |
+
+**Data provenance:** all parcel/zoning data is synthetically generated (`pipeline/generate_sample_data.py`), seeded for reproducibility, with field names and value ranges modeled on public Loudoun County parcel/zoning structure. It is not scraped or downloaded from any live system, and realistic data-quality issues (nulls, negative values, duplicates) are deliberately injected so the Silver-layer quality checks have real problems to catch.
+
+### FastAPI service endpoints
+Run standalone with `uvicorn api.ingestion_service:app --reload --port 8000` (the Streamlit page calls the same pipeline functions in-process, so this is optional — useful for exercising the ingestion API directly):
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /health` | Liveness check; reports the active backend (local vs. databricks) |
+| `POST /ingest` | Accept a batch of parcel records, land them in Bronze |
+| `POST /pipeline/run` | Run the full Bronze → Silver → Gold pipeline (auto-generates sample data on first run) |
+| `GET /pipeline/status` | Latest pipeline run metrics |
+| `GET /parcels/top` | Top-N parcels by predicted development suitability |
+| `GET /parcels/{id}` | Look up a single parcel from the Gold layer |
+| `POST /report/generate` | Synthesize the latest run into an executive report |
 
 ## Tech Stack
 - **[Streamlit](https://streamlit.io/)** — UI and app framework
-- **[Groq API](https://groq.com/)** (Mixtral 8x7B) — concept plan generation
+- **[Groq API](https://groq.com/)** (Llama 3.3 70B) — concept plan generation and executive reporting
+- **[DuckDB](https://duckdb.org/)** + **Parquet** — local medallion pipeline (stand-in for Databricks Lakehouse)
+- **[scikit-learn](https://scikit-learn.org/)** — site-ranking model training (stand-in for Databricks AutoML)
+- **[FastAPI](https://fastapi.tiangolo.com/)** — parcel ingestion/query service
 - **[Plotly](https://plotly.com/python/)** — building layout visualization
-- **Loudoun County ArcGIS REST API** — zoning data source
-- **Nominatim (OpenStreetMap)** — address geocoding
+- **Loudoun County ArcGIS REST API** / **Nominatim (OpenStreetMap)** — zoning data source and geocoding, for TerraIQ only
 
 ## Project Structure
-| File | Purpose |
+| Path | Purpose |
 | --- | --- |
-| `app.py` | Streamlit UI — parcel input, orchestrates zoning lookup, concept generation, and rendering |
-| `zoning.py` | Queries Loudoun County's zoning ArcGIS endpoint for a given lat/lon |
-| `gpt_functions.py` | Calls the Groq API to generate zoning-constrained building concepts |
-| `layout_utils.py` | Renders a concept's footprint/stairs as a Plotly figure |
+| `app.py` | TerraIQ Streamlit UI — parcel input, zoning lookup, concept generation |
+| `zoning.py` | Queries Loudoun County's zoning ArcGIS endpoint |
+| `gpt_functions.py` | Calls Groq to generate zoning-constrained building concepts |
+| `layout_utils.py` | Renders a concept's footprint as a Plotly figure |
+| `groq_client.py` | Shared Groq API config/key lookup (Streamlit secrets or env var) |
+| `pages/1_Portfolio_Intelligence.py` | Portfolio Intelligence Streamlit page |
+| `pipeline/generate_sample_data.py` | Synthetic parcel/zoning dataset generator |
+| `pipeline/medallion.py` | Bronze → Silver → Gold pipeline (DuckDB + Parquet) |
+| `pipeline/train_model.py` | Trains and selects the site-ranking model |
+| `pipeline/executive_report.py` | LLM (Groq) executive report generator, with offline fallback |
+| `pipeline/cloud_adapters.py` | AWS/Databricks placeholder adapters |
+| `api/ingestion_service.py` | FastAPI ingestion/query/report service |
 | `requirements.txt` | Python dependencies |
-| `.devcontainer/` | GitHub Codespaces config — auto-installs dependencies and launches the app |
+| `.devcontainer/` | GitHub Codespaces config |
 
 ## Getting Started
 
 ### Prerequisites
 - Python 3.11+
-- A [Groq API key](https://console.groq.com/keys)
+- A [Groq API key](https://console.groq.com/keys) (optional for Portfolio Intelligence — it falls back to a numbers-only report without one; required for TerraIQ's concept generation)
 
 ### Setup
 ```bash
@@ -45,10 +83,10 @@ cd UrbanAI
 pip install -r requirements.txt
 ```
 
-Add your Groq API key as a Streamlit secret:
+Add your Groq API key as a Streamlit secret (never commit this file — it's gitignored):
 ```bash
-mkdir -p .streamlit
-echo 'GROQ_API_KEY = "your-groq-api-key"' > .streamlit/secrets.toml
+cp .streamlit/secrets.toml.example .streamlit/secrets.toml
+# then edit .streamlit/secrets.toml with your real key
 ```
 
 Run the app:
@@ -56,12 +94,19 @@ Run the app:
 streamlit run app.py
 ```
 
-The app opens at `http://localhost:8501`.
+The app opens at `http://localhost:8501`, with **Portfolio Intelligence** available as a second page in the sidebar.
 
 ### Using GitHub Codespaces
-This repo includes a `.devcontainer` configuration — opening it in a Codespace installs dependencies and launches Streamlit on port 8501 automatically. You'll still need to add `GROQ_API_KEY` as a Codespaces secret before the concept-generation step will work.
+This repo includes a `.devcontainer` configuration — opening it in a Codespace installs dependencies and launches Streamlit on port 8501 automatically. You'll still need to add `GROQ_API_KEY` as a Codespaces secret before TerraIQ's concept-generation step will work (Portfolio Intelligence works without it).
 
-## Scope & Limitations
-- Zoning lookups are specific to **Loudoun County, VA** — the ArcGIS endpoint and geocoding query are hardcoded to that jurisdiction.
-- Concept plans are AI-generated from zoning metadata and are meant as a starting point for exploration, not a substitute for a licensed architect, surveyor, or zoning attorney.
-- Browser geolocation is not yet wired up; coordinates must currently be entered manually or resolved from an address.
+### Deploying to Streamlit Community Cloud
+1. Push this repo to GitHub (already done if you're reading this from the deployed app's source).
+2. At [share.streamlit.io](https://share.streamlit.io), create a new app pointing at this repo, branch, and `app.py` as the entry point.
+3. In the app's **Settings → Secrets**, paste:
+   ```toml
+   GROQ_API_KEY = "your-groq-api-key"
+   ```
+4. Deploy. Portfolio Intelligence works immediately (data/model are generated on first click); TerraIQ's concept generation needs the secret above.
+
+### Using a real AWS/Databricks backend
+By default the pipeline runs entirely locally. To point it at real infrastructure once you have workspace access, set `PIPELINE_BACKEND=databricks` and populate the config in `pipeline/cloud_adapters.py` (AWS region/S3 bucket, Databricks host/token, AutoML experiment ID, MLflow tracking URI, DLT pipeline ID, LakeFlow job ID) — then implement the SDK calls documented in each adapter function.
